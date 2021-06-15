@@ -1,2 +1,2 @@
-# Progettotesi
-Codice R progetto di Tesi
+# Progetto di tesi di Philip Salme
+
