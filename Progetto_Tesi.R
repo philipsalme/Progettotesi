@@ -1,6 +1,7 @@
 author="Philip Salme"
 
 library(tidyverse)
+library(ggplot2)
 library(softImpute)
 library(MASS)
 library(parallel)
@@ -563,31 +564,43 @@ lines(x = lambda_scaled_seq, y = rmse_si_scaled_30)
 lines(x = lambda_scaled_seq, y = rmse_si_scaled_40)
 lines(x = lambda_scaled_seq, y = rmse_si_scaled_100)
 
-## rango 20
+## rango 20 matrice scalata
 
 new_lambda = lambda_scaled_seq[which(zz==min(unlist(zz)))]
-new_lambda_seq = seq(from=new_lambda-3, to=new_lambda+1, length.out=160)
+new_lambda_seq = seq(from=new_lambda-3, to=new_lambda+3, length.out=100)
 
 ptm = proc.time()
 rmse_vic = mclapply(new_lambda_seq, rmse_lambda_scaled, mc.cores=numcores)
 proc.time() - ptm
 
-# risultati 
+min(unlist(rmse_vic)) ## RMSE: 0.8674926
+new_lambda_seq[which(rmse_vic==min(unlist(rmse_vic)))] ## LAMBDA: 20.74009
+# risultati: RMSE vs lambda
 
 plot(x = new_lambda_seq ,y = rmse_vic, type = "l", xlab=expression(lambda), 
      ylab="RMSE")
-points(x = new_lambda_scaled ,y = rmse_vic, pch = 16)
+points(x = new_lambda_seq ,y = rmse_vic, pch = 16)
 abline(h = min(unlist(rmse_vic)), col = "grey")
-abline(v = lambda_scaled_seq[which(rmse_vic == min(unlist(rmse_vic)))], col = "grey")
-points(x = lambda_scaled_seq[which(rmse_vic == min(unlist(rmse_vic)))],
+abline(v = new_lambda_seq[which(rmse_vic == min(unlist(rmse_vic)))], col = "grey")
+points(x = new_lambda_seq[which(rmse_vic == min(unlist(rmse_vic)))],
        y = min(unlist(rmse_vic)), col = "red", pch=16)
+abline(v=lambda_scaled_seq[which(zz==min(unlist(zz)))], col="red", lwd=1.5) ## vecchio lambda star
+
 
 lambda_star=new_lambda_seq[which(rmse_vic==min(unlist(rmse_vic)))]
-rmse_star=rmse_lambda_scaled(lambda_star)
+(rmse_star=rmse_lambda_scaled(lambda_star)) 0.867969
+
+## modello scelto 
+mod=softImpute(sparse_rescaled, 20, lambda_star, type="svd", trace.it = T)
+
 risultati <- bind_rows(risultati, 
                        tibble(metodo = "SoftImpute", 
                               RMSE = rmse_star))
 risultati
+
+
+
+## TEST SET con training in (train set U validation set)
 
 set.seed(1234)
 
@@ -596,7 +609,7 @@ Rating <- seq(1,5,1)
 B <- 10^3 ## numero di iterazioni del calcolo della freq. relativa
 M <- replicate(B, {
   s <- sample(big_train$Rating, 100, replace = TRUE)
-  sapply(rating, p, y= s)
+  sapply(Rating, p, y= s)
 })
 prob <- sapply(1:nrow(M), function(x) mean(M[x,]))
 prob
@@ -604,8 +617,8 @@ prob
 y_hat_casuale <- sample(Rating, size = nrow(test_set),   ## imputazione casuale
                         replace = TRUE, prob = prob)
 
-risultati_test <- tibble(metodo = "Previsione casuale", 
-                    RMSE = RMSE(test_set$Rating, y_hat_casuale))
+(risultati_test <- tibble(metodo = "Previsione casuale", 
+                    RMSE = RMSE(test_set$Rating, y_hat_casuale)))
 
 ## Risultati nel Test-set
 
@@ -613,27 +626,29 @@ mu_big <- mean(big_train$Rating)
 
 # Movie effect (bi)
 b_i_big <- big_train %>% 
-  group_by(MovieId) %>%
-  summarize(b_i = sum(Rating - mu_big)/(n()+lambda)) ## lambda è il parametro trovato tramite validation set
+  group_by(MovieID) %>%
+  summarize(b_i = sum(Rating - mu_big)/(n()))
 
 # User effect (bu)
 b_u_big <- big_train %>% 
-  left_join(b_i_big, by="MovieId") %>%
-  group_by(UserId) %>%
-  summarize(b_u = sum(Rating - b_i - mu_big)/(n()+lambda))
+  left_join(b_i_big, by="MovieID") %>%
+  group_by(UserID) %>%
+  summarize(b_u = sum(Rating - b_i - mu_big)/(n()))
 
 # Previsione
 y_hat_big <- test_set %>% 
-  left_join(b_i_big, by = "MovieId") %>%
-  left_join(b_u_big, by = "UserId") %>%
+  left_join(b_i_big, by = "MovieID") %>%
+  left_join(b_u_big, by = "UserID") %>%
   mutate(pred = mu_big + b_i + b_u) %>%
   pull(pred)
 
 # Update the results table
-risultati_test <- bind_rows(risultati_test, tibble(metodo = "Modello Lineare Regolarizzato, nel test set", 
+risultati_test <- bind_rows(risultati_test, tibble(metodo = "Modello Lineare test set", 
                            RMSE = RMSE(test_set$Rating, y_hat_big)))
+risultati_test
 
 
+## softImpute
 ## creare test_id come nel caso per val_id
 
 
@@ -660,13 +675,49 @@ rmse_lambda_test=function(lambda_val, matrice = sparse_rescaled,
   return(z)
 }
 
+
+
 rmse_test=rmse_lambda_test(lambda_star) ## viene utilizzato il valore di lambda trovato nel validation set
 risultati_test=bind_rows(risultati_test, 
                          tibble(metodo="softImpute Test set", RMSE=rmse_test))
 risultati_test
 
-plot(x=dim(rbind(risultati, risultati_test)["RMSE"])[1],
-     y=rbind(risultati, risultati_test)["RMSE"], col="green", pch=16)                
+
+colori=c("red", "orange", "darkgreen")
+# m=matrix(c(1,1,2,2,1,1,2,2,3,3,3,3), ncol=4, byrow = T)
+# m
+# layout(mat=m)
+# par(mar = c(0.5,5,5,0.5))
+# plot(risultati$RMSE[c(1,4,6)], pch=16, xlim=c(1,3.85),
+#      main = "VALIDATION SET",xaxt="n", type = "p", ylab="RMSE", col=colori)
+# text(y=risultati$RMSE[c(1,4,6)], x=c(1:3)+0.2,
+#      labels = round(risultati$RMSE[c(1,4,6)],4))
+# lines(risultati$RMSE[c(1,4,6)], type="h", col=colori)
+# plot(risultati_test$RMSE, pch=16, xlim=c(1,3.85),
+#      main = "TEST SET", xaxt="n", type = "p", ylab="RMSE", col=colori)
+# text(y=risultati_test$RMSE, x=c(1:3)+0.2,
+#      labels = round(risultati_test$RMSE,4))
+# lines(risultati_test$RMSE, type="h", col=colori)
+# plot(1, type = "n", axes=FALSE, xlab="", ylab="")
+# legend(x="top", inset=0 ,legend=c("METODO CASUALE", "IMPUTAZIONE MEDIA", "SOFTIMPUTE"),
+#        col=c("black","orange", "green"), pch=16, horiz = T)
+# par(mfrow=c(1,1), mar=c(5,5,5,5))
+
+par(mar=c(4,4,4,4), mfrow=c(1,1))
+plot(risultati$RMSE[c(1,4,6)], pch=16, xlim=c(1,3.85), xlab="",
+     main = "CONFRONTO DEI RISULTATI",xaxt="n", type = "p", ylab="RMSE",
+     col=colori, ylim=c(0.6,1.7))
+text(y=risultati$RMSE[c(1,4,6)]+0.05, x=c(1:3)+0.1,
+     labels = round(risultati$RMSE[c(1,4,6)],3))
+lines(risultati$RMSE[c(1,4,6)], type="h", col=colori)
+axis(1, at=c(1.25,2.25,3.25), 
+     labels = c("METODO CASUALE", "IMPUTAZIONE MEDIA + EFFETTI", "SOFTIMPUTE"))
+points(risultati_test$RMSE,x=c(1:3)+0.5, pch=16, col=colori)
+text(y=risultati_test$RMSE+0.05, x=c(1:3)+0.6,
+     labels = round(risultati_test$RMSE,3))
+lines(risultati_test$RMSE,x=c(1:3)+0.5, type="h", col=colori, lty=2)
+legend(x=3.1, y=1.7, inset=0 ,legend=c("VALIDATION SET", "TEST SET"),
+       lty=c(1,2))
 
 ################################################################################
 ################################### END ########################################
