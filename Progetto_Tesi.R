@@ -1,7 +1,6 @@
 author="Philip Salme"
 
 library(tidyverse)
-library(ggplot2)
 library(softImpute)
 library(MASS)
 library(parallel)
