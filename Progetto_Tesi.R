@@ -5,6 +5,7 @@ library(ggplot2)
 library(softImpute)
 library(MASS)
 library(parallel)
+library(data.table)
 
 RMSE=function(reali, previsti){
   sqrt(mean((reali - previsti)^2))
@@ -13,17 +14,18 @@ RMSE=function(reali, previsti){
 ## Dati MovieLens ######################################
 
 
-movielens_data=read_delim("~/Desktop/ml-1m/ratings.dat", delim=":", 
-                          col_names = F)
-movie_names=read_delim("~/Desktop/ml-1m/movies.dat", delim=":" ,               ## lettura del file
-                       col_names = F)
+dl <- tempfile()
+download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
 
-movie_names=movie_names[,-c(2,4)]
+movielens_data <- tibble(fread(text = gsub("::", "\t", 
+                             readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
+                 col.names = c("UserID", "MovieID", "Rating", "timestamp")))
+
+movie_names <- tibble(str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3))
+
+movielens_data=movielens_data[,-4]
 movie_cols=c("MovieID","Title","Genres")
 colnames(movie_names)=movie_cols
-movielens_data=movielens_data[,-c(2,4,6,7)]
-ml_columns=c("UserID","MovieID","Rating")
-colnames(movielens_data)=ml_columns
 movielens_data                                                                  ## 1'000'199 rating
 movie_names                                                                     ## 3'883 film
 
