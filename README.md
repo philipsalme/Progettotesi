@@ -8,11 +8,15 @@ url-movielens-1m: https://grouplens.org/datasets/movielens/1m/
 
 Di seguito viene riportata la distribuzione dei voti nel dataset.
 
-<img align="center" src="distribuzione_rating.png" alt="distribuzione rating" width="800"/>
+<p align="center">
+<img src="distribuzione_rating.png" alt="distribuzione rating" width="800"/>
+</p>
 
 Un'immagine che rappresenta il dataset in formato matriciale, con i punti neri che rappresentano i rating osservati.
 
-<img align="center" src="sparsità.png" alt="Dati in forma matriciale" width="800"/>
+<p align="center">
+<img src="sparsità.png" alt="Dati in forma matriciale" width="800"/>
+</p>
 
 ## librerie R necessarie
 softimpute, tidyverse, parallel, MASS.
@@ -20,8 +24,12 @@ softimpute, tidyverse, parallel, MASS.
 ## Risultati in sintesi
 λ VS RMSE per softimpute nel validation set:
 
+<p align="center">
 <img src="si_1.png" alt=" " width="800"/>
+</p>
 
 Di seguito viene riportata un'immagine riassuntiva dei risultati del modello softImpute rispetto al modello casuale e ad un modello di imputazione della media.
 
+<p align="center">
 <img src="confronto1.png" alt=" " width="800"/>
+</p>
