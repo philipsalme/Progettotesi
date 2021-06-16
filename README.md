@@ -7,7 +7,7 @@ I dati possono essere scaricati dal seguente indirizzo.
 url-movielens-1m: https://grouplens.org/datasets/movielens/1m/
 
 Di seguito viene riportata la distribuzione dei voti nel dataset.
-<img src="distribuzione_rating.png" alt="distribuzione rating" width="200"/>
+<img src="distribuzione_rating.png" alt="distribuzione rating" width="1000"/>
 
 Un'immagine che rappresenta il dataset in formato matriciale, con i punti neri che rappresentano i rating osservati.
 ![Dati in forma matriciale](sparsità.png)
