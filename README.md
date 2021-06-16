@@ -16,7 +16,7 @@ Un'immagine che rappresenta il dataset in formato matriciale, con i punti neri c
 softimpute, tidyverse, parallel, MASS.
 
 ## Risultati in sintesi
-\lambda VS RMSE per softimpute nel validation set:
+λ VS RMSE per softimpute nel validation set:
 ![](si_1.png)
 
 Di seguito viene riportata un'immagine riassuntiva dei risultati del modello softImpute rispetto al modello casuale e ad un modello di imputazione della media.
