@@ -5,7 +5,11 @@ Il progetto consiste nel confronto di metodi di imputazione per valori mancanti 
 ## Dati
 I dati possono essere scaricati dal seguente indirizzo.
 url-movielens-1m: https://grouplens.org/datasets/movielens/1m/
+
+Di seguito viene riportata la distribuzione dei voti nel dataset.
 ![distribuzione rating](distribuzione_rating.png)
+
+Un'immagine che rappresenta il dataset in formato matriciale, con i punti neri che rappresentano i rating osservati.
 ![Dati in forma matriciale](sparsità.png)
 
 ## librerie R necessarie
