@@ -5,7 +5,6 @@ library(ggplot2)
 library(softImpute)
 library(MASS)
 library(parallel)
-library(data.table)
 
 RMSE=function(reali, previsti){
   sqrt(mean((reali - previsti)^2))
@@ -14,18 +13,17 @@ RMSE=function(reali, previsti){
 ## Dati MovieLens ######################################
 
 
-dl <- tempfile()
-download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
+movielens_data=read_delim("~/Desktop/ml-1m/ratings.dat", delim=":", 
+                          col_names = F)
+movie_names=read_delim("~/Desktop/ml-1m/movies.dat", delim=":" ,               ## lettura del file
+                       col_names = F)
 
-movielens_data <- tibble(fread(text = gsub("::", "\t", 
-                             readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
-                 col.names = c("UserID", "MovieID", "Rating", "timestamp")))
-
-movie_names <- tibble(str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3))
-
-movielens_data=movielens_data[,-4]
+movie_names=movie_names[,-c(2,4)]
 movie_cols=c("MovieID","Title","Genres")
 colnames(movie_names)=movie_cols
+movielens_data=movielens_data[,-c(2,4,6,7)]
+ml_columns=c("UserID","MovieID","Rating")
+colnames(movielens_data)=ml_columns
 movielens_data                                                                  ## 1'000'199 rating
 movie_names                                                                     ## 3'883 film
 
@@ -549,6 +547,10 @@ points(x = lambda_scaled_seq[which(rmse_si == min(unlist(rmse_si)))],
 abline(v=c(lambda_scaled_seq[which(rmse_si == min(unlist(rmse_si)))]-3,
            lambda_scaled_seq[which(rmse_si == min(unlist(rmse_si)))]+3), col="green",
        lwd=2)
+text(x=lambda_scaled_seq[which(rmse_si==min(unlist(rmse_si)))]+0.25, y=0.92,
+     labels = round(lambda_scaled_seq[which(rmse_si==min(unlist(rmse_si)))],3))
+text(y=min(unlist(rmse_si))+0.003, x=0, labels = round(min(unlist(rmse_si)),4))
+
 
 plot(x = lambda_si, y = rmse_si_nonscal_5, type = "l", xlab=expression(lambda), 
      ylab="RMSE", main= "Matrice non scalata")
@@ -579,6 +581,22 @@ min(unlist(rmse_vic)) ## RMSE: 0.8674926
 new_lambda_seq[which(rmse_vic==min(unlist(rmse_vic)))] ## LAMBDA: 20.74009
 # risultati: RMSE vs lambda
 
+# par(mfrow=c(1,2), mar=c(4,4,2,1))
+
+plot(x = lambda_scaled_seq ,y = rmse_si, type = "l", xlab=expression(lambda), 
+     ylab="RMSE")
+points(x = lambda_scaled_seq ,y = rmse_si, pch = 16)
+abline(h = min(unlist(rmse_si)), col = "grey")
+abline(v = lambda_scaled_seq[which(rmse_si == min(unlist(rmse_si)))], col = "grey")
+points(x = lambda_scaled_seq[which(rmse_si == min(unlist(rmse_si)))],
+       y = min(unlist(rmse_si)), col = "red", pch=16)
+abline(v=c(lambda_scaled_seq[which(rmse_si == min(unlist(rmse_si)))]-3,
+           lambda_scaled_seq[which(rmse_si == min(unlist(rmse_si)))]+3), col="green",
+       lwd=2)
+text(x=lambda_scaled_seq[which(rmse_si==min(unlist(rmse_si)))]+0.25, y=0.92,
+     labels = round(lambda_scaled_seq[which(rmse_si==min(unlist(rmse_si)))],3))
+text(y=min(unlist(rmse_si))+0.003, x=0, labels = round(min(unlist(rmse_si)),4))
+
 plot(x = new_lambda_seq ,y = rmse_vic, type = "l", xlab=expression(lambda), 
      ylab="RMSE")
 points(x = new_lambda_seq ,y = rmse_vic, pch = 16)
@@ -586,8 +604,14 @@ abline(h = min(unlist(rmse_vic)), col = "grey")
 abline(v = new_lambda_seq[which(rmse_vic == min(unlist(rmse_vic)))], col = "grey")
 points(x = new_lambda_seq[which(rmse_vic == min(unlist(rmse_vic)))],
        y = min(unlist(rmse_vic)), col = "red", pch=16)
-abline(v=lambda_scaled_seq[which(zz==min(unlist(zz)))], col="red", lwd=1.5) ## vecchio lambda star
+text(x=new_lambda_seq[which(rmse_vic==min(unlist(rmse_vic)))]+0.25, y=0.8687,
+     labels = round(new_lambda_seq[which(rmse_vic==min(unlist(rmse_vic)))],3))
+text(y=min(unlist(rmse_vic))+0.00005, x=16.1, labels = round(min(unlist(rmse_vic)),4))
+abline(v=c(lambda_scaled_seq[which(zz==min(unlist(zz)))]-3,
+           lambda_scaled_seq[which(zz==min(unlist(zz)))]+3), col="green", lwd=2)
+# abline(v=lambda_scaled_seq[which(zz==min(unlist(zz)))], col="red", lwd=1.5) ## vecchio lambda star
 
+# par(mfrow=c(1,1), mar=rep(4,4))
 
 lambda_star=new_lambda_seq[which(rmse_vic==min(unlist(rmse_vic)))]
 (rmse_star=rmse_lambda_scaled(lambda_star)) 0.867969
@@ -671,7 +695,6 @@ rmse_lambda_test=function(lambda_val, matrice = sparse_rescaled,
     tmp=impute(soft, i=as.integer(test_id[x,4]), j=as.integer(test_id[x,3]), 
                unscale = T)
     previsti_test=append(previsti_test,tmp)
-    perc=round((100*x)/nrow(test_id))
   }
   z=RMSE(test_rat, previsti_test)
   return(z)
@@ -680,12 +703,34 @@ rmse_lambda_test=function(lambda_val, matrice = sparse_rescaled,
 
 
 rmse_test=rmse_lambda_test(lambda_star) ## viene utilizzato il valore di lambda trovato nel validation set
+
+## miglioramento RMSE tramite arrotondamento dei valori fuori scala
+# valori previsti >5 --> =5
+# valori previsti <1 --> =1
+
+mod=softImpute(sparse_rescaled, lambda = lambda_star, rank.max = 20, maxit = 1000,
+               type="svd", trace.it = T)
+previsti_test=c()
+for (x in 1:nrow(test_id)) {
+  tmp=impute(mod, i=as.integer(test_id[x,4]), j=as.integer(test_id[x,3]), 
+             unscale = T)
+  previsti_test=append(previsti_test,tmp)
+}
+
+
+max(previsti_test) ## 6.706 ->
+min(previsti_test) ## 0.2388542
+previsti_mod=replace(previsti_test, which(previsti_test<1), 1)
+previsti_mod=replace(previsti_mod, which(previsti_mod>5),5)
+
+rmse_star_star=RMSE(previsti_mod, test_rat) ## 0.8595
+
 risultati_test=bind_rows(risultati_test, 
-                         tibble(metodo="softImpute Test set", RMSE=rmse_test))
+        tibble(metodo="softImpute Test set", RMSE=rmse_star_star))
+
 risultati_test
-
-
-colori=c("red", "orange", "darkgreen")
+## alternativa plot 
+# colori=c("red", "orange", "darkgreen")
 # m=matrix(c(1,1,2,2,1,1,2,2,3,3,3,3), ncol=4, byrow = T)
 # m
 # layout(mat=m)
@@ -705,22 +750,38 @@ colori=c("red", "orange", "darkgreen")
 #        col=c("black","orange", "green"), pch=16, horiz = T)
 # par(mfrow=c(1,1), mar=c(5,5,5,5))
 
-par(mar=c(4,4,4,4), mfrow=c(1,1))
+colori=c("red", "orange", "darkgreen")
+par(mar=c(2.5,4,2,2))
 plot(risultati$RMSE[c(1,4,6)], pch=16, xlim=c(1,3.85), xlab="",
      main = "CONFRONTO DEI RISULTATI",xaxt="n", type = "p", ylab="RMSE",
      col=colori, ylim=c(0.6,1.7))
 text(y=risultati$RMSE[c(1,4,6)]+0.05, x=c(1:3)+0.1,
-     labels = round(risultati$RMSE[c(1,4,6)],3))
+     labels = round(risultati$RMSE[c(1,4,6)],4))
 lines(risultati$RMSE[c(1,4,6)], type="h", col=colori)
 axis(1, at=c(1.25,2.25,3.25), 
      labels = c("METODO CASUALE", "IMPUTAZIONE MEDIA + EFFETTI", "SOFTIMPUTE"))
 points(risultati_test$RMSE,x=c(1:3)+0.5, pch=16, col=colori)
 text(y=risultati_test$RMSE+0.05, x=c(1:3)+0.6,
-     labels = round(risultati_test$RMSE,3))
+     labels = round(risultati_test$RMSE,4))
 lines(risultati_test$RMSE,x=c(1:3)+0.5, type="h", col=colori, lty=2)
 legend(x=3.1, y=1.7, inset=0 ,legend=c("VALIDATION SET", "TEST SET"),
        lty=c(1,2))
+par(mar=c(4.1,4.1,4.1,4.1))
 
+
+## residui
+
+par(mfrow=c(1,2))
+plot(previsti_mod, (test_rat-previsti_mod), pch=16, cex=0.4, xlab="fitted", 
+     ylab = "residuals", main = "fitted VS residuals") ## tipici dei dati discreti
+
+plot(test_rat-previsti_mod, pch=16, cex=0.25, xaxt="n", 
+     ylab="residuals") ## la distribuzione dei 
+## residui risulta essere centrata in 0
+abline(h=mean(test_rat-previsti_mod), lty=2, col="red", lwd=2)
+abline(h=c(-2.5*sd(test_rat-previsti_mod),2.5*sd(test_rat-previsti_mod)), 
+       col="darkgreen", lty= 3, lwd= 3)
+par(mfrow=c(1,1))
 ################################################################################
 ################################### END ########################################
 ################################################################################
