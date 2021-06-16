@@ -15,6 +15,6 @@ Un'immagine che rappresenta il dataset in formato matriciale, con i punti neri c
 ## librerie R necessarie
 softimpute, tidyverse, parallel, MASS.
 
-## Risultati in breve
+## Risultati in sintesi
 Di seguito viene riportata un'immagine riassuntiva dei risultati del modello softImpute rispetto al modello casuale e ad un modello di imputazione della media.
 ![](confronto1.png)
