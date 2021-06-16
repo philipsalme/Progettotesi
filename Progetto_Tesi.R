@@ -1,7 +1,15 @@
 author="Philip Salme"
 
+if(!require(tidyverse)) 
+  install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(softImpute)) 
+  install.packages("softImpute", repos = "http://cran.us.r-project.org")
+if(!require(parallel)) 
+  install.packages("parallel", repos = "http://cran.us.r-project.org")
+if(!require(data.table)) 
+  install.packages("data.table", repos = "http://cran.us.r-project.org")
+
 library(tidyverse)
-library(ggplot2)
 library(softImpute)
 library(MASS)
 library(parallel)
@@ -13,17 +21,16 @@ RMSE=function(reali, previsti){
 ## Dati MovieLens ######################################
 
 
-movielens_data=read_delim("~/Desktop/ml-1m/ratings.dat", delim=":", 
-                          col_names = F)
-movie_names=read_delim("~/Desktop/ml-1m/movies.dat", delim=":" ,               ## lettura del file
-                       col_names = F)
+dl <- tempfile()
+download.file("http://files.grouplens.org/datasets/movielens/ml-1m.zip", dl)
 
-movie_names=movie_names[,-c(2,4)]
+movielens_data <- fread(text = gsub("::", "\t", 
+                             readLines(unzip(dl, "ml-1m/ratings.dat"))),
+                 col.names = c("UserID","MovieID","Rating", "timestamp"))
+movie_names <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
 movie_cols=c("MovieID","Title","Genres")
 colnames(movie_names)=movie_cols
-movielens_data=movielens_data[,-c(2,4,6,7)]
-ml_columns=c("UserID","MovieID","Rating")
-colnames(movielens_data)=ml_columns
+movielens_data=movielens_data[,-4]
 movielens_data                                                                  ## 1'000'199 rating
 movie_names                                                                     ## 3'883 film
 
