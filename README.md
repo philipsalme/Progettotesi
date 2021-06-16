@@ -5,6 +5,8 @@ Il progetto consiste nel confronto di metodi di imputazione per valori mancanti 
 ## Dati
 I dati possono essere scaricati dal seguente indirizzo.
 url-movielens-1m: https://grouplens.org/datasets/movielens/1m/
+![distribuzione rating](distribuzione_rating.png)
+![Dati in forma matriciale](sparsità.png)
 
 ## librerie R necessarie
 softimpute, tidyverse, parallel, MASS.
