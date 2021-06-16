@@ -8,11 +8,11 @@ url-movielens-1m: https://grouplens.org/datasets/movielens/1m/
 
 Di seguito viene riportata la distribuzione dei voti nel dataset.
 
-<img src="distribuzione_rating.png" alt="distribuzione rating" width="800"/>
+<img align="center" src="distribuzione_rating.png" alt="distribuzione rating" width="800"/>
 
 Un'immagine che rappresenta il dataset in formato matriciale, con i punti neri che rappresentano i rating osservati.
 
-<img src="sparsità.png" alt="Dati in forma matriciale" width="800"/>
+<img align="center" src="sparsità.png" alt="Dati in forma matriciale" width="800"/>
 
 ## librerie R necessarie
 softimpute, tidyverse, parallel, MASS.
