@@ -9,10 +9,6 @@ if(!require(parallel))
 if(!require(data.table)) 
   install.packages("data.table", repos = "http://cran.us.r-project.org")
 
-library(tidyverse)
-library(softImpute)
-library(MASS)
-library(parallel)
 
 RMSE=function(reali, previsti){
   sqrt(mean((reali - previsti)^2))
@@ -24,17 +20,20 @@ RMSE=function(reali, previsti){
 dl <- tempfile()
 download.file("http://files.grouplens.org/datasets/movielens/ml-1m.zip", dl)
 
-movielens_data <- fread(text = gsub("::", "\t", 
-                             readLines(unzip(dl, "ml-1m/ratings.dat"))),
-                 col.names = c("UserID","MovieID","Rating", "timestamp"))
-movie_names <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
-movie_cols=c("MovieID","Title","Genres")
-colnames(movie_names)=movie_cols
-movielens_data=movielens_data[,-4]
-movielens_data                                                                  ## 1'000'199 rating
-movie_names                                                                     ## 3'883 film
+movielens_data = tibble(fread(text = gsub("::", "\t", 
+                                    readLines(unzip(dl, "ml-1m/ratings.dat"))),
+                        col.names = c("UserID","MovieID","Rating", "timestamp")))
+movie_names_tmp = str_split_fixed(readLines(unzip(dl, "ml-1m/movies.dat"))
+                                            , "\\::", 3)
+movie_names=tibble("MovieID"=movie_names_tmp[,1], 
+                   "Title"=movie_names_tmp[,2],
+                   "Genres"=movie_names_tmp[,3])
+movielens_data=movielens_data[,-4] ## eliminati timestamp non utilizzati per le analisi
+movielens_data    ## 1'000'199 rating
+movie_names       ## 3'883 film
 
-movielens_data%>%                                                               ## Distribuzione dei voti
+## Distribuzione dei voti ##
+movielens_data%>%
   mutate(Rating=as.factor(Rating))%>%
   ggplot(aes(x=Rating))+
   geom_bar(aes(y = (..count..)/sum(..count..)))+
@@ -45,16 +44,34 @@ movielens_data%>%                                                               
   scale_y_continuous(labels = scales::percent)+
   theme_bw()
 
-
+## Sparse Matrix visualization ##
 ml_sparse_matrix=movielens_data%>%
   spread(key="MovieID", value="Rating", fill=NA)
 user_idx=ml_sparse_matrix[,1]
 ml_sparse_matrix=ml_sparse_matrix[,-1]
 image(as.matrix(ml_sparse_matrix), xaxt="n", yaxt="n", col=c("white", rep("black",5)))
 
-medie_film=colMeans(ml_sparse_matrix, na.rm = T)
-which(medie_film==max(medie_film)) ## 2858, 2652
-movie_names[colnames(ml_sparse_matrix[,which(medie_film==max(medie_film))]),2] ## 3072, 2858
+## Best movies ##
+medie_film=movielens_data %>%
+  group_by(MovieID)%>%
+  summarize(media=mean(Rating))
+medie_film
+which(medie_film$media==max(medie_film$media)) ## film con media voti = max 
+movie_names[colnames(ml_sparse_matrix[,
+              which(medie_film$media==max(medie_film$media))]),] 
+# OUTPUT
+#    MovieID Title                            Genres        
+# <chr>   <chr>                            <chr>         
+#   1 796     Very Natural Thing, A (1974)     Drama         
+# 2 1001    Associate, The (L'Associe)(1982) Comedy        
+#  3 1898    Land Girls, The (1998)           Drama|War     
+#  4 3240    Big Tease, The (1999)            Comedy        
+#  5 3301    Whole Nine Yards, The (2000)     Comedy|Crime  
+#  6 3348    Night Visitor, The (1970)        Crime|Thriller
+#  7 3450    Grumpy Old Men (1993)            Comedy        
+#  8 3675    White Christmas (1954)           Musical       
+#  9 3724    Coming Home (1978)               Drama|War     
+# 10 3950    Tigerland (2000)                 Drama  
 
 dim(ml_sparse_matrix)
 
@@ -625,7 +642,7 @@ lines(x = lambda_scaled_seq, y = rmse_si_scaled_30, col="darkgreen",lty=1 )
 lines(x = lambda_scaled_seq, y = rmse_si_scaled_40, col="darkgreen", lty=2)
 lines(x = lambda_scaled_seq, y = rmse_si_scaled_100, col="darkblue")
 legend("bottomright", col=c("red", "red", "darkgreen", "darkgreen",
-                           "darkblue"), lty = c(1,2,1,2,1),
+                            "darkblue"), lty = c(1,2,1,2,1),
        legend = c("rank 5", "rank 20", "rank 30", "rank 40", "rank 100"))
 
 ## rango 20 matrice scalata
