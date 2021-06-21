@@ -38,20 +38,19 @@ movielens_data%>%                                                               
   mutate(Rating=as.factor(Rating))%>%
   ggplot(aes(x=Rating))+
   geom_bar(aes(y = (..count..)/sum(..count..)))+
-  labs(title="Distribuzione dei voti")+
-  ylab("Frequenza Relativa")+
+  labs(title="Rating distribution in whole dataset")+
+  ylab("Frequency")+
   geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
                  y=(..count..)/sum(..count..)), stat= "count", vjust = -.5) +
-  scale_y_continuous(labels = scales::percent)
+  scale_y_continuous(labels = scales::percent)+
+  theme_bw()
 
 
 ml_sparse_matrix=movielens_data%>%
   spread(key="MovieID", value="Rating", fill=NA)
 user_idx=ml_sparse_matrix[,1]
 ml_sparse_matrix=ml_sparse_matrix[,-1]
-image(as.matrix(ml_sparse_matrix), col=c("black", "blue", "green",              ## visualizzazione dei dati
-                                         "red", "violet", "yellow"),
-      xaxt="n", yaxt="n")
+image(as.matrix(ml_sparse_matrix), xaxt="n", yaxt="n", col=c("white", rep("black",5)))
 
 medie_film=colMeans(ml_sparse_matrix, na.rm = T)
 which(medie_film==max(medie_film)) ## 2858, 2652
@@ -62,10 +61,10 @@ dim(ml_sparse_matrix)
 
 ## film maggiormente recensiti
 head(movielens_data %>%
-  group_by(MovieID) %>%
-  summarise(frequenza=n(), media_voti=mean(Rating)) %>%
-  arrange(desc(frequenza)) %>%
-  left_join(movie_names, "MovieID"))
+       group_by(MovieID) %>%
+       summarise(frequenza=n(), media_voti=mean(Rating)) %>%
+       arrange(desc(frequenza)) %>%
+       left_join(movie_names, "MovieID"))
 
 ## film con media voti più elevata
 head(movielens_data %>%
@@ -97,11 +96,9 @@ head(movielens_data %>%
 
 ## utenti più attivi
 head(movielens_data %>%
-  group_by(UserID) %>%
-  summarise(frequenza=n(), media_voti=mean(Rating)) %>%
-  arrange(desc(frequenza)))
-
-## Imputazione Media #####################################
+       group_by(UserID) %>%
+       summarise(frequenza=n(), media_voti=mean(Rating)) %>%
+       arrange(desc(frequenza)))
 
 inc=as(as.matrix(ml_sparse_matrix), "Incomplete") ## 12 MB
 
@@ -113,14 +110,18 @@ inc1=as.matrix(ml_sparse_matrix) ## 179.3MB
 rm(inc1)
 
 ## campionamento dei dati ################################
+
 set.seed(1234)
 shuffle_lb=sample(1:dim(movielens_data)[1])
 
 train_set=movielens_data[shuffle_lb[1:round(0.75*dim(movielens_data)[1],0)],]
+dim(train_set) ## 750'157 righe
 val_set=movielens_data[shuffle_lb[(round(0.75*dim(movielens_data)[1],0)+
-                                    1):round(0.90*dim(movielens_data)[1],0)],]
+                                     1):round(0.90*dim(movielens_data)[1],0)],]
+dim(val_set) ## 150'031 righe
 test_set=movielens_data[shuffle_lb[(round(0.90*dim(movielens_data)[1],0)+
-                                     1):dim(movielens_data)[1]],]
+                                      1):dim(movielens_data)[1]],]
+dim(test_set) ## 100'021 righe
 dim(train_set)[1]*100/dim(movielens_data)[1] ## ca. 75%
 dim(val_set)[1]*100/dim(movielens_data)[1]   ## ca. 15%
 dim(test_set)[1]*100/dim(movielens_data)[1]  ## ca. 10%
@@ -128,10 +129,12 @@ test_set=test_set %>%
   filter(UserID %in% unique(train_set$UserID), MovieID %in% unique(
     train_set$MovieID
   ))
+dim(test_set) ## 100'005
 val_set=val_set %>%
   filter(UserID %in% unique(bind_rows(train_set, val_set)$UserID), MovieID %in% unique(bind_rows(
     train_set, val_set)$MovieID
   ))
+dim(val_set) ## 150'031
 big_train=rbind(train_set, val_set)
 
 
@@ -139,109 +142,153 @@ train_set %>%                                                                   
   mutate(Rating=as.factor(Rating))%>%
   ggplot(aes(x=Rating))+
   geom_bar(aes(y = (..count..)/sum(..count..)))+
-  labs(title="Distribuzione dei voti")+
-  ylab("Frequenza Relativa")+
+  labs(title="Rating distribution in training set")+
+  ylab("Frequency")+
   geom_text(aes( label = scales::percent((..count..)/sum(..count..)),
                  y=(..count..)/sum(..count..)), stat= "count", vjust = -.5) +
-  scale_y_continuous(labels = scales::percent)
-
-
-train_set %>%
-  group_by(Rating) %>%
-  summarize(n=n()/sum(n())) %>%
-  ggplot(aes(x=Rating, y=n)) +
-  geom_bar()
+  scale_y_continuous(labels = scales::percent)+
+  theme_bw()
 
 
 ## imputazione casuale utilizzando le frequenze relative campionarie ######
+
 set.seed(1234)
 
 p <- function(x, y) mean(y == x)
 Rating <- seq(1,5,1)
 B <- 10^3 ## numero di iterazioni del calcolo della freq. relativa
 M <- replicate(B, {
-  s <- sample(train_set$Rating, 100, replace = TRUE)
+  s <- sample(big_train$Rating, 100, replace = TRUE)
   sapply(Rating, p, y= s)
 })
 prob <- sapply(1:nrow(M), function(x) mean(M[x,]))
 prob
 
-y_hat_casuale <- sample(Rating, size = nrow(val_set),   ## imputazione casuale
+y_hat_casuale <- sample(Rating, size = nrow(test_set),   ## imputazione casuale
                         replace = TRUE, prob = prob)
 
-risultati <- tibble(metodo = "Previsione casuale", 
-                    RMSE = RMSE(val_set$Rating, y_hat_casuale))
-risultati
+risultati_test <- tibble(metodo = "Previsione casuale", 
+                         RMSE = RMSE(test_set$Rating, y_hat_casuale))
+risultati_test
 
 
 ## imputazione della media e calcolo del RMSE ############
 
-mu=mean(train_set$Rating)
-risultati=bind_rows(risultati, tibble(
+mu=mean(big_train$Rating)
+risultati_test=bind_rows(risultati_test, tibble(
   metodo = "Imputazione della media",
   RMSE=RMSE(val_set$Rating, mu)
 ))
+mu
 
-risultati
+risultati_test
 
 
 ## media per colonna (media dei voti per ogni film)
 
-bi=train_set %>%
+bi=big_train %>%
   group_by(MovieID) %>%
   summarize(b_i=mean(Rating-mu))
 head(bi, 7)
 
-bi %>% ggplot(aes(x = b_i)) + 
-  geom_histogram(bins=10, col = I("black")) +
-  ggtitle("Movie Effect Distribution") +
-  xlab("Movie effect") +
-  ylab("Count") +
-  scale_y_continuous(labels = comma) + 
-  theme_economist()
+# bi %>% ggplot(aes(x = b_i)) + 
+#   geom_histogram(bins=10, col = I("black")) +
+#   ggtitle("Movie Effect Distribution") +
+#   xlab("Movie effect") +
+#   ylab("Count") +
+#   theme_bw()
 
-y_hat_bi <- mu + val_set %>% 
+bi %>% ggplot(aes(x=b_i))+
+  stat_density(fill="darkgreen", alpha=0.5, col="green", kernel = "gaussian") +
+  ggtitle("Movie Effect distribution using Gaussian Kernel") +
+  labs(x="Movie Bias", y="Frequency")
+
+bi %>% ggplot(aes(x = b_i)) + 
+  geom_histogram(bins=20, col = I("black"), aes(y=(..count..)/sum(..count..))) +
+  ggtitle("Movie Effect Histogram") +
+  geom_vline(aes(xintercept = mean(b_i), color="mean"), lty="dashed")+
+  geom_vline(aes(xintercept = median(b_i), color="median"), lty="dashed") +
+  labs(color="Legend", x="Movie Bias", y="Frequency") +
+  scale_color_manual(values = c("median"="green", "mean"="red"))+
+  theme_bw()
+
+y_hat_bi <- mu + test_set %>% 
   left_join(bi, by = "MovieID") %>% 
   .$b_i
 y_hat_bi
-risultati <- bind_rows(risultati, 
-                       tibble(metodo = "Media + Movie Effect", 
-                              RMSE = RMSE(val_set$Rating, y_hat_bi)))
-risultati
+risultati_test <- bind_rows(risultati_test, 
+                            tibble(metodo = "Media + Movie Effect", 
+                                   RMSE = RMSE(test_set$Rating, y_hat_bi)))
+risultati_test
 
 ## inserimento dell'effetto user
 
-bu <- train_set %>% 
+bu1 <- big_train %>% 
+  group_by(UserID) %>%
+  summarize(b_u = mean(Rating - mu))
+
+# previsione tramite user effect
+y_hat_bu1 <- test_set %>%
+  left_join(bu, by='UserID') %>%
+  mutate(pred = mu + b_u) %>%
+  .$pred
+
+risultati_test <- bind_rows(risultati_test, 
+                            tibble(metodo = "Media + User effect", 
+                                   RMSE = RMSE(test_set$Rating, y_hat_bu1)))
+risultati_test
+
+bu1 %>% 
+  ggplot(aes(b_u)) + 
+  geom_histogram(color = "black", bins=20, aes(y=(..count..)/sum(..count..))) + 
+  ggtitle("User Effect Histogram") +
+  geom_vline(aes(xintercept = mean(b_u), color="mean"), lty="dashed")+
+  geom_vline(aes(xintercept = median(b_u), color="median"), lty="dashed") +
+  labs(color="Legend", x="User Bias", y="Frequency") +
+  scale_color_manual(values = c("median"="green", "mean"="red"))+
+  theme_bw()
+
+bu1 %>% 
+  ggplot(aes(b_u)) + 
+  stat_density(fill="red", alpha=0.5, col="#960F0F", kernel = "gaussian")+
+  labs(x="User Bias", y="Frequency") + 
+  ggtitle("User Effect Distribution using Gaussian Kernel")
+
+## MEAN + MOVIE EFFECT + ITEM EFFECT (ADDITIVE MODEL)
+
+bu <- big_train %>% 
   left_join(bi, by = 'MovieID') %>%
   group_by(UserID) %>%
   summarize(b_u = mean(Rating - mu - b_i))
 
-# previsione tramite user effect
-y_hat_bi_bu <- val_set %>% 
+bu %>% 
+  ggplot(aes(b_u)) + 
+  geom_histogram(color = "black", bins=20, aes(y=(..count..)/sum(..count..))) + 
+  ggtitle("User Effect Histogram") +
+  geom_vline(aes(xintercept = mean(b_u), color="mean"), lty="dashed") +
+  geom_vline(aes(xintercept = median(b_u), color="median"), lty="dashed") +
+  labs(color="Legend", x="User Bias", y="frequency") +
+  scale_color_manual(values = c("median"="green", "mean"="red"))+
+  theme_bw()
+
+bu %>% 
+  ggplot(aes(b_u)) + 
+  stat_density(fill="red", alpha=0.5, col="#960F0F", kernel = "gaussian")+
+  labs(x="User Bias", y="Frequenze Relative") + 
+  ggtitle("Distribuzione Effetto User tramite kernel gaussiano")
+
+y_hat_bi_bu <- test_set %>% 
   left_join(bi, by='MovieID') %>%
   left_join(bu, by='UserID') %>%
   mutate(pred = mu + b_i + b_u) %>%
   .$pred
 
-risultati <- bind_rows(risultati, 
-                       tibble(metodo = "Media + Movie Effect + User effect", 
-                              RMSE = RMSE(val_set$Rating, y_hat_bi_bu)))
-risultati
+risultati_test <- bind_rows(risultati_test, 
+                            tibble(metodo = "Media + Movie Effect + User effect", 
+                                   RMSE = RMSE(test_set$Rating, y_hat_bi_bu)))
+risultati_test
 
-train_set %>% 
-  group_by(userId) %>% 
-  summarize(b_u = mean(rating)) %>% 
-  filter(n()>=100) %>%
-  ggplot(aes(b_u)) + 
-  geom_histogram(color = "black") + 
-  ggtitle("User Effect Distribution") +
-  xlab("User Bias") +
-  ylab("Count") +
-  scale_y_continuous(labels = comma) + 
-  theme_economist()
-
-
-## Regolarizzazione #########################################
+## Regularized Linear Model #########################################
 
 regularization <- function(lambda, train, test){
   
@@ -313,7 +360,8 @@ risultati <- bind_rows(risultati,
                               RMSE = RMSE(val_set$Rating, y_hat_reg)))
 risultati
 
-## Matrix completion utilizzando SoftImpute ###########
+## Matrix completion using SoftImpute ###################
+
 ## creazione della matrice sparsa, formato da tidy a Wide
 
 sparse=train_set %>%                                                            ## Sparse sarà una matrice pivot
@@ -382,7 +430,7 @@ abline(v=lambda_si[which(rmses_si==min(rmses_si))])
 min(rmses_si)
 rmses_si
 soft=softImpute(sparse_incomplete, lambda = a-0.5,
-           type="svd", maxit=1000, rank.max = 20)
+                type="svd", maxit=1000, rank.max = 20)
 soft
 voti_previsti=c()
 for (x in 1:nrow(val_id)) {
@@ -560,20 +608,25 @@ text(y=min(unlist(rmse_si))+0.003, x=0, labels = round(min(unlist(rmse_si)),4))
 
 
 plot(x = lambda_si, y = rmse_si_nonscal_5, type = "l", xlab=expression(lambda), 
-     ylab="RMSE", main= "Matrice non scalata")
-lines(x= lambda_si, y=rmse_si_nonscal_20)
-lines(x= lambda_si, y=rmse_si_nonscal_30)
-lines(x= lambda_si, y=rmse_si_nonscal_40)
-lines(x= lambda_si, y=rmse_si_nonscal_100)
+     ylab="RMSE", main= "Non Scaled Matrix", col="red", lty=1)
+lines(x= lambda_si, y=rmse_si_nonscal_20, col="red", lty=2)
+lines(x= lambda_si, y=rmse_si_nonscal_30, col="darkgreen", lty=1)
+lines(x= lambda_si, y=rmse_si_nonscal_40, col="darkgreen", lty=2)
+lines(x= lambda_si, y=rmse_si_nonscal_100, col="darkblue", lty=1)
+legend("bottomright", col=c("red", "red", "darkgreen", "darkgreen",
+                            "darkblue"), lty = c(1,2,1,2,1),
+       legend = c("rank 5", "rank 20", "rank 30", "rank 40", "rank 100"))
 
 
-plot(x = lambda_scaled_seq, y = rmse_si_scaled_5, type = "l", xlab=expression(lambda), 
-     ylab="RMSE", main = "Matrice Scalata")
-lines(x = lambda_scaled_seq, y = rmse_si_scaled_5)
-lines(x = lambda_scaled_seq, y = rmse_si_scaled_20)
-lines(x = lambda_scaled_seq, y = rmse_si_scaled_30)
-lines(x = lambda_scaled_seq, y = rmse_si_scaled_40)
-lines(x = lambda_scaled_seq, y = rmse_si_scaled_100)
+plot(x = lambda_scaled_seq, y = rmse_si_scaled_20, type = "l", xlab=expression(lambda), 
+     ylab="RMSE", main = "Scaled Matrix", col="red", lty=2)
+lines(x = lambda_scaled_seq, y = rmse_si_scaled_5, col="red", lty=1)
+lines(x = lambda_scaled_seq, y = rmse_si_scaled_30, col="darkgreen",lty=1 )
+lines(x = lambda_scaled_seq, y = rmse_si_scaled_40, col="darkgreen", lty=2)
+lines(x = lambda_scaled_seq, y = rmse_si_scaled_100, col="darkblue")
+legend("bottomright", col=c("red", "red", "darkgreen", "darkgreen",
+                           "darkblue"), lty = c(1,2,1,2,1),
+       legend = c("rank 5", "rank 20", "rank 30", "rank 40", "rank 100"))
 
 ## rango 20 matrice scalata
 
@@ -621,69 +674,13 @@ abline(v=c(lambda_scaled_seq[which(zz==min(unlist(zz)))]-3,
 # par(mfrow=c(1,1), mar=rep(4,4))
 
 lambda_star=new_lambda_seq[which(rmse_vic==min(unlist(rmse_vic)))]
-(rmse_star=rmse_lambda_scaled(lambda_star)) 0.867969
+(rmse_star=rmse_lambda_scaled(lambda_star)) ## 0.867969
 
 ## modello scelto 
 mod=softImpute(sparse_rescaled, 20, lambda_star, type="svd", trace.it = T)
 
-risultati <- bind_rows(risultati, 
-                       tibble(metodo = "SoftImpute", 
-                              RMSE = rmse_star))
-risultati
-
-
-
-## TEST SET con training in (train set U validation set)
-
-set.seed(1234)
-
-p <- function(x, y) mean(y == x)
-Rating <- seq(1,5,1)
-B <- 10^3 ## numero di iterazioni del calcolo della freq. relativa
-M <- replicate(B, {
-  s <- sample(big_train$Rating, 100, replace = TRUE)
-  sapply(Rating, p, y= s)
-})
-prob <- sapply(1:nrow(M), function(x) mean(M[x,]))
-prob
-
-y_hat_casuale <- sample(Rating, size = nrow(test_set),   ## imputazione casuale
-                        replace = TRUE, prob = prob)
-
-(risultati_test <- tibble(metodo = "Previsione casuale", 
-                    RMSE = RMSE(test_set$Rating, y_hat_casuale)))
-
-## Risultati nel Test-set
-
-mu_big <- mean(big_train$Rating)
-
-# Movie effect (bi)
-b_i_big <- big_train %>% 
-  group_by(MovieID) %>%
-  summarize(b_i = sum(Rating - mu_big)/(n()))
-
-# User effect (bu)
-b_u_big <- big_train %>% 
-  left_join(b_i_big, by="MovieID") %>%
-  group_by(UserID) %>%
-  summarize(b_u = sum(Rating - b_i - mu_big)/(n()))
-
-# Previsione
-y_hat_big <- test_set %>% 
-  left_join(b_i_big, by = "MovieID") %>%
-  left_join(b_u_big, by = "UserID") %>%
-  mutate(pred = mu_big + b_i + b_u) %>%
-  pull(pred)
-
-# Update the results table
-risultati_test <- bind_rows(risultati_test, tibble(metodo = "Modello Lineare test set", 
-                           RMSE = RMSE(test_set$Rating, y_hat_big)))
-risultati_test
-
-
 ## softImpute
 ## creare test_id come nel caso per val_id
-
 
 test_rat=test_set$Rating
 test_id=test_set[,-3] %>%
@@ -723,17 +720,22 @@ for (x in 1:nrow(test_id)) {
              unscale = T)
   previsti_test=append(previsti_test,tmp)
 }
+risultati_test=bind_rows(risultati_test, 
+                         tibble(metodo="softImpute Test set originale", RMSE=RMSE(
+                           test_set$Rating, previsti_test
+                         ))) ## 0.861
 
+risultati_test
 
-max(previsti_test) ## 6.706 ->
-min(previsti_test) ## 0.2388542
+max(previsti_test) ## 6.706 --> 5
+min(previsti_test) ## 0.2388542 --> 1
 previsti_mod=replace(previsti_test, which(previsti_test<1), 1)
 previsti_mod=replace(previsti_mod, which(previsti_mod>5),5)
 
 rmse_star_star=RMSE(previsti_mod, test_rat) ## 0.8595
 
 risultati_test=bind_rows(risultati_test, 
-        tibble(metodo="softImpute Test set", RMSE=rmse_star_star))
+                         tibble(metodo="softImpute Test set modificato", RMSE=rmse_star_star))
 
 risultati_test
 ## alternativa plot 
@@ -757,26 +759,28 @@ risultati_test
 #        col=c("black","orange", "green"), pch=16, horiz = T)
 # par(mfrow=c(1,1), mar=c(5,5,5,5))
 
-colori=c("red", "orange", "darkgreen")
-par(mar=c(2.5,4,2,2))
-plot(risultati$RMSE[c(1,4,6)], pch=16, xlim=c(1,3.85), xlab="",
-     main = "CONFRONTO DEI RISULTATI",xaxt="n", type = "p", ylab="RMSE",
-     col=colori, ylim=c(0.6,1.7))
-text(y=risultati$RMSE[c(1,4,6)]+0.05, x=c(1:3)+0.1,
-     labels = round(risultati$RMSE[c(1,4,6)],4))
-lines(risultati$RMSE[c(1,4,6)], type="h", col=colori)
-axis(1, at=c(1.25,2.25,3.25), 
-     labels = c("METODO CASUALE", "IMPUTAZIONE MEDIA + EFFETTI", "SOFTIMPUTE"))
-points(risultati_test$RMSE,x=c(1:3)+0.5, pch=16, col=colori)
-text(y=risultati_test$RMSE+0.05, x=c(1:3)+0.6,
-     labels = round(risultati_test$RMSE,4))
-lines(risultati_test$RMSE,x=c(1:3)+0.5, type="h", col=colori, lty=2)
-legend(x=3.1, y=1.7, inset=0 ,legend=c("VALIDATION SET", "TEST SET"),
-       lty=c(1,2))
-par(mar=c(4.1,4.1,4.1,4.1))
+m=matrix(c(1,1,1,1,1,1,1,1,2,2), ncol = 2, byrow=T)
+layout(mat=m)
+par(mar=c(0.5,4,3,0.5))
+CPCOLS=c("#ED7F7D", "#E62825", "#800B09", "#7B16AD", "#066948", "#D1B30B", "#087282")
+plot(y=risultati_test$RMSE, x=c(1:7), pch=16, col=CPCOLS, xlab="",
+     main = "CONFRONTO DEI RISULTATI", xaxt="n", type = "p", ylab="RMSE",
+     ylim=c(min(risultati_test$RMSE)-0.2, max(risultati_test$RMSE)+0.2),
+     xlim=c(0.5,7.5))
+text(y=risultati_test$RMSE+0.08, x=c(1:7),
+     labels = round(risultati_test$RMSE,4), col=CPCOLS)
+lines(y=risultati_test$RMSE, x=c(1:7), col="grey", lty=4)
+lines(y=risultati_test$RMSE, x=c(1:7), type="h", col=CPCOLS)
+# par(mar=c(0,4,0,2))
+# plot(x=1:7, y=rep(5,7), ylim=c(4,6.2), xlim=c(0.5,7.5), type="n", axes=FALSE, xlab="", ylab="")
+text(y=risultati_test$RMSE+0.16, x=c(1:7),
+     labels = c("METODO CASUALE", "MEDIA",
+                "MEDIA+\nMOVIE EFF.",
+                "MEDIA+\nUSER EFF.",
+                "MEDIA+\nMOVIE EFF.+\nUSER EFF.",
+                "SOFTIMPUTE", "SOFTIMPUTE\nMODIFICATO"), col=CPCOLS, cex=0.8)
+par(mar=c(4,4,4,4))
 
-
-## residui
 
 par(mfrow=c(1,2))
 plot(previsti_mod, (test_rat-previsti_mod), pch=16, cex=0.4, xlab="fitted", 
@@ -789,6 +793,7 @@ abline(h=mean(test_rat-previsti_mod), lty=2, col="red", lwd=2)
 abline(h=c(-2.5*sd(test_rat-previsti_mod),2.5*sd(test_rat-previsti_mod)), 
        col="darkgreen", lty= 3, lwd= 3)
 par(mfrow=c(1,1))
+
 ################################################################################
 ################################### END ########################################
 ################################################################################
