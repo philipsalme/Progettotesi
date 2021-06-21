@@ -755,6 +755,7 @@ risultati_test=bind_rows(risultati_test,
                          tibble(metodo="softImpute Test set modificato", RMSE=rmse_star_star))
 
 risultati_test
+               
 ## alternativa plot 
 # colori=c("red", "orange", "darkgreen")
 # m=matrix(c(1,1,2,2,1,1,2,2,3,3,3,3), ncol=4, byrow = T)
@@ -776,26 +777,25 @@ risultati_test
 #        col=c("black","orange", "green"), pch=16, horiz = T)
 # par(mfrow=c(1,1), mar=c(5,5,5,5))
 
-m=matrix(c(1,1,1,1,1,1,1,1,2,2), ncol = 2, byrow=T)
-layout(mat=m)
 par(mar=c(0.5,4,3,0.5))
 CPCOLS=c("#ED7F7D", "#E62825", "#800B09", "#7B16AD", "#066948", "#D1B30B", "#087282")
-plot(y=risultati_test$RMSE, x=c(1:7), pch=16, col=CPCOLS, xlab="",
+plot(y=risultati_test$RMSE[c(1:5,7,6)], x=c(1:7), pch=16, col=CPCOLS, xlab="",
      main = "CONFRONTO DEI RISULTATI", xaxt="n", type = "p", ylab="RMSE",
      ylim=c(min(risultati_test$RMSE)-0.2, max(risultati_test$RMSE)+0.2),
      xlim=c(0.5,7.5))
 text(y=risultati_test$RMSE+0.08, x=c(1:7),
-     labels = round(risultati_test$RMSE,4), col=CPCOLS)
-lines(y=risultati_test$RMSE, x=c(1:7), col="grey", lty=4)
-lines(y=risultati_test$RMSE, x=c(1:7), type="h", col=CPCOLS)
+     labels = round(risultati_test$RMSE[c(1:5,7,6)],4), col=CPCOLS)
+lines(y=risultati_test$RMSE[c(1:5,7,6)], x=c(1:7), col="grey", lty=4)
+lines(y=risultati_test$RMSE[c(1:5,7,6)], x=c(1:7), type="h", col=CPCOLS)
 # par(mar=c(0,4,0,2))
 # plot(x=1:7, y=rep(5,7), ylim=c(4,6.2), xlim=c(0.5,7.5), type="n", axes=FALSE, xlab="", ylab="")
 text(y=risultati_test$RMSE+0.16, x=c(1:7),
-     labels = c("METODO CASUALE", "MEDIA",
+     labels = c("METODO\nCASUALE", "MEDIA",
                 "MEDIA+\nMOVIE EFF.",
                 "MEDIA+\nUSER EFF.",
                 "MEDIA+\nMOVIE EFF.+\nUSER EFF.",
-                "SOFTIMPUTE", "SOFTIMPUTE\nMODIFICATO"), col=CPCOLS, cex=0.8)
+                "SOFTIMPUTE",
+                "SOFTIMPUTE\nMODIFICATO"), col=CPCOLS, cex=0.8)
 par(mar=c(4,4,4,4))
 
 
