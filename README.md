@@ -31,5 +31,5 @@ softimpute, tidyverse, parallel, MASS.
 Di seguito viene riportata un'immagine riassuntiva dei risultati del modello softImpute rispetto al modello casuale e ad un modello di imputazione della media.
 
 <p align="center">
-<img src="confronto1.png" alt=" " width="800"/>
+<img src="confronto.png" alt=" " width="800"/>
 </p>
